@@ -1,0 +1,6 @@
+name: BPI
+type: module
+description: 'Provides integration with BPI services.'
+core: 8.x
+package: BPI
+configure: bpi.settings
