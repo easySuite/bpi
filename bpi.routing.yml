@@ -9,7 +9,7 @@ bpi.service:
 bpi.settings:
   path: '/admin/config/bpi/settings'
   defaults:
-#    _form: ''
+    _form: '\Drupal\bpi\Form\ServiceSettingsForm'
     _title: 'Service settings'
   requirements:
     _permission: 'administer site configuration'
