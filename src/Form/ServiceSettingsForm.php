@@ -81,20 +81,18 @@ class ServiceSettingsForm extends ConfigFormBase {
       $form_state->setErrorByName('bpi_service_url', $this->t('Please enter a valid url.'));
     }
     else {
+      /** @var \Drupal\bpi\Services\BpiService $bpiService */
+      $bpiService = \Drupal::service('bpi.service');
+
       try {
-        $bpi = new Bpi(
+        $bpiService->checkConnectivity(
           $form_state->getValue('bpi_service_url'),
           $form_state->getValue('bpi_agency_id'),
           $form_state->getValue('bpi_api_key'),
           $form_state->getValue('bpi_secret_key')
         );
-
-        // Fake a request, to check connectivity.
-        // TODO: Might be slow and unreliable, add a method in Bpi to check connectivity.
-        $bpi->searchNodes(['*']);
-      }
-      catch (SDKException $e) {
-        $form_state->setErrorByName('bpi_service_url', $e->getMessage());
+      } catch (SDKException $e) {
+        $form_state->setErrorByName('', $e->getMessage());
       }
     }
   }

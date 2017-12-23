@@ -9,8 +9,8 @@ bpi.settings:
   route_name: bpi.settings
   description: 'BPI integration settings.'
 
-bpi.content_mapping:
-  title: 'Content mapping'
-  parent: bpi.service
-  route_name: bpi.content_mapping
-  description: 'Map BPI fields to your content fields.'
+#bpi.content_mapping:
+#  title: 'Content mapping'
+#  parent: bpi.service
+#  route_name: bpi.content_mapping
+#  description: 'Map BPI fields to your content fields.'

@@ -1,0 +1,105 @@
+<?php
+
+use \Drupal\Core\Form\FormStateInterface;
+
+/**
+ * Implement hook_form_FORM_ID_alter().
+ */
+function bpi_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  $form['bpi_settings'] = [
+    '#type' => 'fieldset',
+    '#title' => t('Biblioteks Produceret Indhold'),
+    '#weight' => 99,
+    '#attached' => [
+      'library' => [
+        'bpi/bpi_node_form_alter',
+      ],
+    ],
+  ];
+
+  $form['bpi_settings']['send_to_bpi'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Send to BPI'),
+  ];
+
+  $form['bpi_settings']['configurations'] = [
+    '#type' => 'fieldset',
+    '#collapsible' => FALSE,
+    '#collapsed' => FALSE,
+    '#states' => [
+      'visible' => [
+        ':input[name="send_to_bpi"]' => [
+          'checked' => TRUE,
+        ],
+      ],
+    ],
+  ];
+
+  $form['bpi_settings']['configurations']['dropdowns'] = [
+    '#type' => 'container',
+  ];
+
+  $vocabularies = bpi_get_bpi_dictionaries();
+
+  $categories = array_values($vocabularies['category']);
+  $form['bpi_settings']['configurations']['dropdowns']['bpi_push_category'] = [
+    '#type' => 'select',
+    '#title' => t('Category'),
+    '#options' => array_combine($categories, $categories),
+    '#default_value' => 'Skønlitteratur',
+  ];
+
+  $audiences = array_values($vocabularies['audience']);
+  $form['bpi_settings']['configurations']['dropdowns']['bpi_push_audience'] = [
+    '#type' => 'select',
+    '#title' => t('Audience'),
+    '#options' => array_combine($audiences, $audiences),
+    '#default_value' => 'Voksne',
+  ];
+
+  $form['bpi_settings']['configurations']['checkboxes'] = [
+    '#type' => 'container',
+  ];
+
+  $form['bpi_settings']['configurations']['checkboxes']['bpi_push_images'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Push with images'),
+    '#description' => t('You should have permission to publish the images before selecting this option.'),
+    '#default_value' => FALSE,
+  ];
+
+  $form['bpi_settings']['configurations']['checkboxes']['bpi_push_ccl'] = [
+    '#type' => 'checkbox',
+    '#title' => t('I want to be anonymous'),
+    '#description' => t('If checked, the content will be pushed as anonymous to BPI.'),
+  ];
+
+  $form['bpi_settings']['configurations']['checkboxes']['bpi_push_editable'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Editable'),
+    '#description' => t('If checked, the content will be marked as non-editable. It is not enforced, but only recommended that the content is not changed after syndication.'),
+    '#default_value' => TRUE,
+  ];
+}
+
+/**
+ * Fetch dictionaries from BPI ws.
+ *
+ * @return array
+ *   Nested array of dictionaries, keyed by dictionary
+ *   type.
+ */
+function bpi_get_bpi_dictionaries() {
+  $dictionaries = ['category' => [], 'audience' => []];
+
+  /** @var \Drupal\bpi\Services\BpiService $bpiService */
+  $bpiService = \Drupal::service('bpi.service');
+
+  try {
+    $dictionaries = $bpiService->getInstance()->getDictionaries();
+  } catch (\Exception $e) {
+    \Drupal::logger('bpi')->error($e->getMessage());
+  }
+
+  return $dictionaries;
+}

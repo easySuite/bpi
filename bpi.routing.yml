@@ -14,10 +14,10 @@ bpi.settings:
   requirements:
     _permission: 'administer site configuration'
 
-bpi.content_mapping:
-  path: '/admin/config/bpi/content_mapping'
-  defaults:
-    _form: '\Drupal\bpi\Form\ContentMappingForm'
-    _title: 'Content mapping'
-  requirements:
-    _permission: 'administer site configuration'
+#bpi.content_mapping:
+#  path: '/admin/config/bpi/content_mapping'
+#  defaults:
+#    _form: '\Drupal\bpi\Form\ContentMappingForm'
+#    _title: 'Content mapping'
+#  requirements:
+#    _permission: 'administer site configuration'
