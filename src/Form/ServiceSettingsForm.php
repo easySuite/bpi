@@ -81,11 +81,11 @@ class ServiceSettingsForm extends ConfigFormBase {
       $form_state->setErrorByName('bpi_service_url', $this->t('Please enter a valid url.'));
     }
     else {
-      /** @var \Drupal\bpi\Services\BpiService $bpiService */
-      $bpiService = \Drupal::service('bpi.service');
+      /** @var \Drupal\bpi\Services\BpiService $bpi_service */
+      $bpi_service = \Drupal::service('bpi.service');
 
       try {
-        $bpiService->checkConnectivity(
+        $bpi_service->checkConnectivity(
           $form_state->getValue('bpi_service_url'),
           $form_state->getValue('bpi_agency_id'),
           $form_state->getValue('bpi_api_key'),

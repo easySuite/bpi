@@ -1,11 +1,20 @@
 <?php
 
 use \Drupal\Core\Form\FormStateInterface;
+use \Drupal\node\Entity\Node;
+use \Drupal\Core\Url;
+use \Drupal\user\Entity\User;
 
 /**
  * Implement hook_form_FORM_ID_alter().
  */
 function bpi_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  $selected_content_type = \Drupal::config('bpi.content_mapping')
+    ->get('bpi_content_type');
+  if ($form_id !== 'node_' . $selected_content_type . '_edit_form') {
+    return;
+  }
+
   $form['bpi_settings'] = [
     '#type' => 'fieldset',
     '#title' => t('Biblioteks Produceret Indhold'),
@@ -80,6 +89,10 @@ function bpi_form_node_form_alter(&$form, FormStateInterface $form_state, $form_
     '#description' => t('If checked, the content will be marked as non-editable. It is not enforced, but only recommended that the content is not changed after syndication.'),
     '#default_value' => TRUE,
   ];
+
+  // @TODO: Add a validate handler.
+  $form['#submit'][] = 'Drupal\bpi\Controller\FormHandlers::bpi_push_submit';
+  $form['actions']['submit']['#submit'][] = 'Drupal\bpi\Controller\FormHandlers::bpi_push_submit';
 }
 
 /**
@@ -102,4 +115,92 @@ function bpi_get_bpi_dictionaries() {
   }
 
   return $dictionaries;
+}
+
+/**
+ * Convert node object to array structure, suitable for pushing to the well.
+ *
+ * @param stdClass $node
+ *   Node object being processed.
+ * @param string $category
+ *   Selected category at the BPI side.
+ * @param string $audience
+ *   Selected audience at the BPI side.
+ * @param bool $with_images
+ *   Include images or not.
+ * @param bool $authorship
+ *   Include author name or not.
+ * @param int $editable
+ *   1 - to mark as editable, 0 - not editable.
+ * @param bool $with_refs
+ *   If TRUE ting material reference are extracted.
+ *
+ * @return array
+ *   An array of node values, used by the BPI web service.
+ *
+ * @todo Add a hook allowing changing the values before they are sent to BPI.
+ * @todo Split this function into smaller parts (ex: images, texts).
+ */
+function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FALSE, $authorship = FALSE, $editable = 1, $with_refs = TRUE): array {
+  $bpi_content = [];
+
+  $bpi_service_settings = \Drupal::config('bpi.service_settings');
+
+  $bpi_content['agency_id'] = $bpi_service_settings->get('bpi_agency_id');
+  $bpi_content['local_id'] = $node->id();
+  $bpi_content['bpi_id'] = NULL;
+  $bpi_content['url'] = Url::fromRoute('entity.node.canonical', ['node' => $node->id()], [
+    'absolute' => TRUE,
+    'alias' => TRUE,
+  ])->toString();
+  $bpi_content['data'] = '';
+
+  $user = User::load($node->getOwnerId());
+  $bpi_content['firstname'] = $user->getDisplayName();
+  $bpi_content['lastname'] = '';
+
+  $bpi_content['title'] = $node->getTitle();
+
+  $bpi_content_mapping = \Drupal::config('bpi.content_mapping');
+  $teaser_field_setting = $bpi_content_mapping->get('bpi_field_teaser');
+  $body_field_setting = $bpi_content_mapping->get('bpi_field_body');
+  $teaser_field = $node->{$teaser_field_setting}->view();
+  $body_field = $node->{$body_field_setting}->view();
+
+  $teaser_field_values = $teaser_field['#items']->getValue();
+  $body_field_values = $body_field['#items']->getValue();
+
+  $teaser = !empty($teaser_field_values[0]['summary']) ? $teaser_field_values[0]['summary'] : $teaser_field_values[0]['value'];
+  $body = $body_field_values[0]['value'];
+
+  if (strcmp($teaser, $body) === 0) {
+    $teaser = '';
+  }
+
+  $bpi_content['teaser'] = html_entity_decode($teaser);
+  $bpi_content['body'] = html_entity_decode($body);
+
+  $dt = new \DateTime();
+  $dt->setTimestamp($node->getChangedTime());
+  $bpi_content['creation'] = $dt->format(DateTime::W3C);
+  $bpi_content['type'] = $node->getType();
+  $bpi_content['category'] = $category;
+  $bpi_content['audience'] = $audience;
+  $bpi_content['related_materials'] = [];
+  $bpi_content['editable'] = (int) $editable;
+  $bpi_content['authorship'] = ($authorship) ? FALSE : TRUE;
+  $bpi_content['assets'] = [];
+
+  $tags_field_setting = $bpi_content_mapping->get('bpi_field_tags');
+  $tags_field = $node->{$tags_field_setting}->view();
+  $tags = [];
+  if ($tags_field['#field_type'] == 'entity_reference') {
+    foreach ($tags_field['#items']->referencedEntities() as $referencedEntity) {
+      $tags[] = $referencedEntity->getName();
+    }
+  }
+
+  $bpi_content['tags'] = implode(',', $tags);
+
+  return $bpi_content;
 }

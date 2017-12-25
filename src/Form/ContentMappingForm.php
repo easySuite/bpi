@@ -84,13 +84,21 @@ class ContentMappingForm extends ConfigFormBase {
       '#default_value' => $settings->get('bpi_field_body') ?: '',
     ];
 
-//    $form['bpi_mapper']['bpi_field_materials'] = [
-//      '#type' => 'select',
-//      '#title' => $this->t('BPI materials'),
-//      '#description' => $this->t('Field used to get reference to the T!NG data well.'),
-//      '#options' => $field_instances,
-//      '#default_value' => $settings->get('bpi_field_materials') ?: '',
-//    ];
+    $form['bpi_mapper']['bpi_field_tags'] = [
+      '#type' => 'select',
+      '#title' => $this->t('BPI tags'),
+      '#description' => $this->t('Field used to get tags from.'),
+      '#options' => $field_instances,
+      '#default_value' => $settings->get('bpi_field_tags') ?: '',
+    ];
+
+    $form['bpi_mapper']['bpi_field_materials'] = [
+      '#type' => 'select',
+      '#title' => $this->t('BPI materials'),
+      '#description' => $this->t('Field used to get reference to the T!NG data well.'),
+      '#options' => $field_instances,
+      '#default_value' => $settings->get('bpi_field_materials') ?: '',
+    ];
 
     return parent::buildForm($form, $form_state);
   }
@@ -115,6 +123,8 @@ class ContentMappingForm extends ConfigFormBase {
       ->set('bpi_content_type', $form_state->getValue('bpi_content_type'))
       ->set('bpi_field_teaser', $form_state->getValue('bpi_field_teaser'))
       ->set('bpi_field_body', $form_state->getValue('bpi_field_body'))
+      ->set('bpi_field_tags', $form_state->getValue('bpi_field_tags'))
+      ->set('bpi_field_materials', $form_state->getValue('bpi_field_materials'))
       ->save();
 
     parent::submitForm($form, $form_state);
@@ -146,6 +156,9 @@ class ContentMappingForm extends ConfigFormBase {
 
     $allowed_types = [
       'text_long',
+      'text_with_summary',
+      'string',
+      'entity_reference',
     ];
 
     $fields = [];
