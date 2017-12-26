@@ -1,9 +1,12 @@
 <?php
 
-use \Drupal\Core\Form\FormStateInterface;
-use \Drupal\node\Entity\Node;
-use \Drupal\Core\Url;
-use \Drupal\user\Entity\User;
+use Drupal\bpi\Bpi\BpiCore;
+use Drupal\Core\Database\Database;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
+use Drupal\Core\Link;
+use Drupal\node\Entity\Node;
+use Drupal\user\Entity\User;
 
 /**
  * Implement hook_form_FORM_ID_alter().
@@ -26,9 +29,15 @@ function bpi_form_node_form_alter(&$form, FormStateInterface $form_state, $form_
     ],
   ];
 
+  $loaded_node = $form_state->getFormObject()->getEntity();
+  $bpi_configured = bpi_service_is_configured();
+  $node_pushed = !empty($loaded_node->bpi_id);
+
   $form['bpi_settings']['send_to_bpi'] = [
     '#type' => 'checkbox',
     '#title' => t('Send to BPI'),
+    '#disabled' => $bpi_configured === FALSE || $node_pushed,
+    '#description' => $node_pushed ? t('This node is already pushed to BPI.') : '',
   ];
 
   $form['bpi_settings']['configurations'] = [
@@ -90,9 +99,13 @@ function bpi_form_node_form_alter(&$form, FormStateInterface $form_state, $form_
     '#default_value' => TRUE,
   ];
 
-  // @TODO: Add a validate handler.
-  $form['#submit'][] = 'Drupal\bpi\Controller\FormHandlers::bpi_push_submit';
-  $form['actions']['submit']['#submit'][] = 'Drupal\bpi\Controller\FormHandlers::bpi_push_submit';
+
+  $validate_handler = 'Drupal\bpi\Controller\FormHandlers::bpi_push_validate';
+  $form['#validate'][] = $validate_handler;
+
+  $submit_handler = 'Drupal\bpi\Controller\FormHandlers::bpi_push_submit';
+  $form['#submit'][] = $submit_handler;
+  $form['actions']['submit']['#submit'][] = $submit_handler;
 }
 
 /**
@@ -203,4 +216,116 @@ function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FAL
   $bpi_content['tags'] = implode(',', $tags);
 
   return $bpi_content;
+}
+
+/**
+ * Track nodes push/syndication actions.
+ *
+ * @param $nid
+ *   Node id.
+ * @param $bid
+ *   BPI id.
+ * @param array $params
+ *   BPI params
+ * @param $status
+ *   BPI status.
+ *
+ * @throws \Exception
+ */
+function bpi_update_syndicated($nid, $status, $bid = 0, array $params = []) {
+  $fields = [
+    'nid' => $nid,
+    'data' => serialize($params),
+    'timestamp' => \Drupal::time()->getRequestTime(),
+    'status' => $status,
+    'bid' => $bid,
+  ];
+
+  $query = Database::getConnection()->merge('bpi_syndicated');
+  $query->condition('nid', $nid);
+  $query->fields($fields);
+  $query->execute();
+}
+
+/**
+ * Set user friendly feedback message based on exception error codes.
+ *
+ * @param int $http_code
+ *   Error code returned from BPI.
+ */
+function bpi_error_message($http_code) {
+  switch ($http_code) {
+    case 422:
+      $msg = t('Similar resource already exists in the BPI service.');
+      break;
+
+    case 406:
+      $msg = t('Trying to syndicate content by owner who already did that is not allowed.');
+      break;
+
+    case 500;
+      $msg = t('Internal server error. Please try once more or contact your site administrator.');
+      break;
+
+    default:
+      $msg = t('Error occurred when pushing content to the BPI data well. Check reports for more information.');
+      break;
+  }
+
+  drupal_set_message($msg, 'error');
+  \Drupal::logger('bpi')->error($msg);
+}
+
+/**
+ * Check that BPI service configuration have been set.
+ *
+ * If it have not been configured yet error message are set.
+ *
+ * @return bool
+ *   If service is configured TRUE else FALSE is returned.
+ */
+function bpi_service_is_configured() {
+  $settings = \Drupal::config('bpi.service_settings');
+
+  $endpoint = $settings->get('bpi_service_url');
+  $agency_id = $settings->get('bpi_agency_id');
+  $api_key = $settings->get('bpi_api_key');
+  $secret_key = $settings->get('bpi_secret_key');
+
+  $configured = TRUE;
+
+  $settings_url = Url::fromRoute('bpi.settings');
+  $settings_link = Link::fromTextAndUrl(t('BPI settings'), $settings_url);
+  $message = t('In order to push this content to BPI, please check @settings_url.', ['@settings_url' => $settings_link->toString()]);
+
+  if (empty($endpoint) || empty($agency_id) || empty($api_key) || empty($secret_key)) {
+    drupal_set_message($message, 'error');
+    $configured = FALSE;
+  }
+
+  return $configured;
+}
+
+/**
+ * Implements hook_node_load().
+ *
+ * Enrich node object with bpi_id, if any.
+ */
+function bpi_node_load($nodes) {
+  $nids = array_keys($nodes);
+
+  $result = Database::getConnection()->select('bpi_syndicated', 'bs')
+    ->fields('bs', [
+      'nid',
+      'bid',
+    ])
+    ->condition('nid', $nids, 'IN')
+    ->execute()
+    ->fetchAllAssoc('nid');
+
+  foreach ($nodes as $nid => &$node) {
+    if (isset($result[$nid])) {
+      $node->bpi_id = $result[$nid]->bid;
+    }
+  }
 }
