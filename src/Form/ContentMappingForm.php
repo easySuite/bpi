@@ -2,7 +2,6 @@
 
 namespace Drupal\bpi\Form;
 
-use Drupal\Core\Field\FieldConfigInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 
@@ -49,7 +48,6 @@ class ContentMappingForm extends ConfigFormBase {
 
     $default = $form['bpi_content_type']['#default_value'];
     $selected_node_type = $form_state->getValue('bpi_content_type', $default);
-    $field_instances = $this->getFieldInstances($selected_node_type);
 
     $form['bpi_mapper'] = [
       '#type' => 'fieldset',
@@ -67,6 +65,14 @@ class ContentMappingForm extends ConfigFormBase {
       '#default_value' => $settings->get('bpi_field_title') ?: 'title',
       '#disabled' => TRUE,
     ];
+
+    $allowed_types = [
+      'text_long',
+      'text_with_summary',
+      'string',
+      'entity_reference',
+    ];
+    $field_instances = bpi_find_field_instances($selected_node_type, $allowed_types);
 
     $form['bpi_mapper']['bpi_field_teaser'] = [
       '#type' => 'select',
@@ -128,47 +134,5 @@ class ContentMappingForm extends ConfigFormBase {
       ->save();
 
     parent::submitForm($form, $form_state);
-  }
-
-  /**
-   * Get a list of fields, for a certain node type.
-   *
-   * Simplifies and filters the output of the core field_info_instances()
-   * function.
-   *
-   * Filtering means that we do not want text values into image fields, etc.
-   *
-   * @param string $node_type
-   *   Node type machine name, whose fields list is expected.
-   *
-   * @return array
-   *   An array with the fields, for the specified node type.
-   */
-  public function getFieldInstances($node_type) {
-    if (empty($node_type)) {
-      return [];
-    }
-
-    $entityManager = \Drupal::service('entity.manager');
-    $node_fields = array_filter($entityManager->getFieldDefinitions('node', $node_type), function ($field_definition) {
-      return $field_definition instanceof FieldConfigInterface;
-    });
-
-    $allowed_types = [
-      'text_long',
-      'text_with_summary',
-      'string',
-      'entity_reference',
-    ];
-
-    $fields = [];
-    /** @var \Drupal\field\Entity\FieldConfig $field */
-    foreach ($node_fields as $field) {
-      if (in_array($field->getType(), $allowed_types)) {
-        $fields[$field->getName()] = $field->getLabel();
-      }
-    }
-
-    return $fields;
   }
 }

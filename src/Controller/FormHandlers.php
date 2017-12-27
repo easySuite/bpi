@@ -27,13 +27,13 @@ class FormHandlers {
     $category = $form_state->getValue('bpi_push_category');
     $audience = $form_state->getValue('bpi_push_audience');
     $with_images = $form_state->getValue('bpi_push_images');
-    $authorship = $form_state->getValue('bpi_push_ccl');
+    $anonymous = $form_state->getValue('bpi_push_ccl');
     $editable = $form_state->getValue('bpi_push_editable');
 
     /** @var \Drupal\node\Entity\Node $node */
     $node = $form_state->getFormObject()->getEntity();
 
-    $bpi_content = bpi_convert_to_bpi($node, $category, $audience, $with_images, $authorship, $editable);
+    $bpi_content = bpi_convert_to_bpi($node, $category, $audience, $with_images, $anonymous, $editable);
 
     /** @var \Drupal\bpi\Services\BpiService $bpi_service */
     $bpi_service = \Drupal::service('bpi.service');
