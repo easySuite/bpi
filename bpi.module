@@ -65,7 +65,7 @@ function bpi_form_node_form_alter(&$form, FormStateInterface $form_state, $form_
     '#type' => 'select',
     '#title' => t('Category'),
     '#options' => array_combine($categories, $categories),
-    '#default_value' => 'Skønlitteratur',
+    '#default_value' => 'Litteratur',
   ];
 
   $audiences = array_values($vocabularies['audience']);
