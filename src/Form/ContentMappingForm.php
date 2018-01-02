@@ -73,6 +73,7 @@ class ContentMappingForm extends ConfigFormBase {
       'entity_reference',
     ];
     $field_instances = bpi_find_field_instances($selected_node_type, $allowed_types);
+    array_unshift($field_instances, $this->t('- None -'));
 
     $form['bpi_mapper']['bpi_field_teaser'] = [
       '#type' => 'select',

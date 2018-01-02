@@ -20,7 +20,18 @@ class FormHandlers {
    * Catches the submit event of a form to push the node to bpi service.
    */
   public static function bpi_push_submit(&$form, FormStateInterface $form_state) {
+    /** @var \Drupal\node\Entity\Node $loaded_node */
+    $loaded_node = $form_state->getFormObject()->getEntity();
+    $node_pushed = !empty($loaded_node->bpi_id);
+
     if (empty($form_state->getValue('send_to_bpi'))) {
+      return;
+    }
+    elseif ($node_pushed) {
+      $t = [
+        '%title' => $loaded_node->getTitle(),
+      ];
+      drupal_set_message(t('BPI: Node %title was already pushed to the well.', $t), 'warning');
       return;
     }
 
@@ -44,15 +55,18 @@ class FormHandlers {
       if (!empty($push_result['id'])) {
         $data['bid'] = $push_result['id'];
         bpi_update_syndicated($node->id(), BpiCore::BPI_PUSHED, $push_result['id'], $data);
-        drupal_set_message(t('Node %title was successfully pushed to BPI well.', ['%title' => $node->getTitle()]));
+        drupal_set_message(t('BPI: Node %title was successfully pushed to the well.', ['%title' => $node->getTitle()]));
       }
       else {
-        drupal_set_message(t('Error when pushing content to BPI.'), 'error');
+        drupal_set_message(t('BPI: Error while pushing content to the well.'), 'error');
         \Drupal::logger('bpi')
           ->error(t('An error occurred when pushing content to BPI.'));
-        return FALSE;
       }
     } catch (SDKException $e) {
+      bpi_error_message($e->getCode());
+      \Drupal::logger('bpi')->error($e->getMessage());
+    }
+    catch (\Exception $e) {
       bpi_error_message($e->getCode());
       \Drupal::logger('bpi')->error($e->getMessage());
     }

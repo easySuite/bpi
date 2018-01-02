@@ -30,15 +30,13 @@ function bpi_form_node_form_alter(&$form, FormStateInterface $form_state, $form_
     ],
   ];
 
-  $loaded_node = $form_state->getFormObject()->getEntity();
   $bpi_configured = bpi_service_is_configured();
-  $node_pushed = !empty($loaded_node->bpi_id);
 
   $form['bpi_settings']['send_to_bpi'] = [
     '#type' => 'checkbox',
     '#title' => t('Send to BPI'),
-    '#disabled' => $bpi_configured === FALSE || $node_pushed,
-    '#description' => $node_pushed ? t('This node is already pushed to BPI.') : '',
+    '#disabled' => $bpi_configured === FALSE,
+    '#default_value' => $bpi_configured,
   ];
 
   $form['bpi_settings']['configurations'] = [
@@ -172,27 +170,29 @@ function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FAL
   $user = User::load($node->getOwnerId());
   $bpi_content['firstname'] = $user->getDisplayName();
   $bpi_content['lastname'] = '';
-
   $bpi_content['title'] = $node->getTitle();
 
   $bpi_content_mapping = \Drupal::config('bpi.content_mapping');
+
   $teaser_field_setting = $bpi_content_mapping->get('bpi_field_teaser');
-  $body_field_setting = $bpi_content_mapping->get('bpi_field_body');
-  $teaser_field = $node->{$teaser_field_setting}->view();
-  $body_field = $node->{$body_field_setting}->view();
-
-  $teaser_field_values = $teaser_field['#items']->getValue();
-  $body_field_values = $body_field['#items']->getValue();
-
-  $teaser = !empty($teaser_field_values[0]['summary']) ? $teaser_field_values[0]['summary'] : $teaser_field_values[0]['value'];
-  $body = $body_field_values[0]['value'];
-
-  if (strcmp($teaser, $body) === 0) {
-    $teaser = '';
+  if (!empty($teaser_field_setting) && !empty($node->get($teaser_field_setting)->getValue())) {
+    $teaser_field_values = $node->get($teaser_field_setting)->getValue();
+    $teaser = !empty($teaser_field_values[0]['summary']) ? $teaser_field_values[0]['summary'] : $teaser_field_values[0]['value'];
+    $bpi_content['teaser'] = html_entity_decode($teaser);
   }
 
-  $bpi_content['teaser'] = html_entity_decode($teaser);
-  $bpi_content['body'] = html_entity_decode($body);
+  $body_field_setting = $bpi_content_mapping->get('bpi_field_body');
+  if (!empty($body_field_setting) && !empty($node->get($body_field_setting)->getValue())) {
+    $body_field_values = $node->get($body_field_setting)->getValue();
+    $body = !empty($body_field_values[0]['value']) ? $body_field_values[0]['value'] : '';
+    $bpi_content['body'] = html_entity_decode($body);
+  }
+
+  $has_teaser = !empty($bpi_content['teaser']);
+  $has_body = !empty($bpi_content['body']);
+  if ($has_teaser && $has_body && strcmp($bpi_content['teaser'], $bpi_content['body']) === 0) {
+    $bpi_content['teaser'] = '';
+  }
 
   $dt = new \DateTime();
   $dt->setTimestamp($node->getChangedTime());
@@ -207,14 +207,16 @@ function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FAL
 
   // Collect tags.
   $tags_field_setting = $bpi_content_mapping->get('bpi_field_tags');
-  $tags_field = $node->{$tags_field_setting}->view();
-  $tags = [];
-  if ($tags_field['#field_type'] == 'entity_reference') {
-    foreach ($tags_field['#items']->referencedEntities() as $referencedEntity) {
-      $tags[] = $referencedEntity->getName();
+  if (!empty($tags_field_setting) && !empty($node->get($tags_field_setting)->getValue())) {
+    $tags_field = $node->get($tags_field_setting)->view();
+    $tags = [];
+    if ($tags_field['#field_type'] == 'entity_reference') {
+      foreach ($tags_field['#items']->referencedEntities() as $referencedEntity) {
+        $tags[] = $referencedEntity->getName();
+      }
     }
+    $bpi_content['tags'] = implode(',', $tags);
   }
-  $bpi_content['tags'] = implode(',', $tags);
 
   // Collect images.
   if ($with_images) {
@@ -222,25 +224,25 @@ function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FAL
     $image_fields = bpi_find_field_instances($node->getType(), $potential_image_fields);
 
     foreach (array_keys($image_fields) as $image_field_name) {
-      $image_field = $node->{$image_field_name}->view();
+      $image_field = $node->get($image_field_name)->view();
       /** @var \Drupal\image\Plugin\Field\FieldType\ImageItem $item */
       foreach ($image_field['#items'] as $item) {
         $file_uri = $item->entity->getFileUri();
 
         // TODO: Image pushing/syndication is broken.
-        $bpi_content['assets'][] = array(
+        $bpi_content['assets'][] = [
           'path' => file_create_url($file_uri),
           'alt' => $item->alt ?: $item->entity->getFilename(),
           'title' => $item->title ?: $item->entity->getFilename(),
           'type' => bpi_get_image_type($image_field_name, $node),
           'name' => $item->entity->getFilename(),
           'extension' => pathinfo($file_uri, PATHINFO_EXTENSION),
-        );
+        ];
       }
     }
   }
 
-  // TODO: Image pushing/syndication is not support for inline images.
+  // TODO: Image pushing/syndication is not supported for inline images.
   $bpi_content['body'] = preg_replace(
     '~(<p>)?<img.+?/>(</p>)?~is',
     '',
@@ -249,13 +251,38 @@ function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FAL
 
   // Collect materials.
   $materials_field_setting = $bpi_content_mapping->get('bpi_field_materials');
-  $materials_field = $node->{$materials_field_setting}->view();
-  $materials = [];
-  foreach ($materials_field['#items']->getValue() as $item) {
+  if (!empty($materials_field_setting) && !empty($node->get($materials_field_setting)->getValue())) {
+    $materials_field = $node->get($materials_field_setting)->view();
+    $materials = [];
+    // TODO: Sanitize this part.
+    if ($materials_field['#field_type'] == 'entity_reference') {
+      foreach ($materials_field['#items']->referencedEntities() as $referencedEntity) {
+        if ($referencedEntity->getType() == 'book') {
+          $faust_field = $referencedEntity->get('field_book_old_library_key');
+          if ($faust_field) {
+            foreach ($referencedEntity->get('field_book_old_library_key')->getValue() as $value) {
+              $materials[] = $value['value'];
+            }
+          }
+        }
+        else {
+          $materials[] = $referencedEntity->getName();
+        }
+      }
+    }
+    else {
+      foreach ($materials_field['#items']->getValue() as $item) {
+        $materials[] = $item['value'];
+      }
+    }
+
     // TODO: Small hack for BPI validation, this might not be suitable id at all.
-    $materials[] = '870970-basis:' . $item['value'];
+    array_walk($materials, function(&$v, $k) {
+        $v = '870970-basis:'.$v;
+    });
+
+    $bpi_content['related_materials'] = $materials;
   }
-  $bpi_content['related_materials'] = $materials;
 
   return $bpi_content;
 }
@@ -298,19 +325,19 @@ function bpi_update_syndicated($nid, $status, $bid = 0, array $params = []) {
 function bpi_error_message($http_code) {
   switch ($http_code) {
     case 422:
-      $msg = t('Similar resource already exists in the BPI service.');
+      $msg = t('BPI: Similar resource already exists in the well.');
       break;
 
     case 406:
-      $msg = t('Trying to syndicate content by owner who already did that is not allowed.');
+      $msg = t('BPI: Trying to syndicate content by owner who already did that is not allowed.');
       break;
 
     case 500;
-      $msg = t('Internal server error. Please try once more or contact your site administrator.');
+      $msg = t('BPI: Failed to communicate with BPI service. Check your field mapping setting and/or service settings.');
       break;
 
     default:
-      $msg = t('Error occurred when pushing content to the BPI data well. Check reports for more information.');
+      $msg = t('BPI: Generic error. Check reports for more information.');
       break;
   }
 
@@ -338,7 +365,7 @@ function bpi_service_is_configured() {
 
   $settings_url = Url::fromRoute('bpi.settings');
   $settings_link = Link::fromTextAndUrl(t('BPI settings'), $settings_url);
-  $message = t('In order to push this content to BPI, please check @settings_url.', ['@settings_url' => $settings_link->toString()]);
+  $message = t('BPI: In order to push this content to the well, please check @settings_url.', ['@settings_url' => $settings_link->toString()]);
 
   if (empty($endpoint) || empty($agency_id) || empty($api_key) || empty($secret_key)) {
     drupal_set_message($message, 'error');
