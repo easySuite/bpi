@@ -4,3 +4,5 @@ description: 'Provides integration with BPI services.'
 core: 8.x
 package: BPI
 configure: bpi.settings
+'interface translation project': bpi
+'interface translation server pattern': modules/custom/bpi/translations/da.po
