@@ -186,6 +186,13 @@ function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FAL
     $body_field_values = $node->get($body_field_setting)->getValue();
     $body = !empty($body_field_values[0]['value']) ? $body_field_values[0]['value'] : '';
     $bpi_content['body'] = html_entity_decode($body);
+
+    // TODO: Image pushing/syndication is not supported for inline images.
+    $bpi_content['body'] = preg_replace(
+      '~(<p>)?<img.+?/>(</p>)?~is',
+      '',
+      $bpi_content['body']
+    );
   }
 
   $has_teaser = !empty($bpi_content['teaser']);
@@ -224,6 +231,10 @@ function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FAL
     $image_fields = bpi_find_field_instances($node->getType(), $potential_image_fields);
 
     foreach (array_keys($image_fields) as $image_field_name) {
+      if (empty($node->get($image_field_name)->getValue())) {
+        continue;
+      }
+
       $image_field = $node->get($image_field_name)->view();
       /** @var \Drupal\image\Plugin\Field\FieldType\ImageItem $item */
       foreach ($image_field['#items'] as $item) {
@@ -241,13 +252,6 @@ function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FAL
       }
     }
   }
-
-  // TODO: Image pushing/syndication is not supported for inline images.
-  $bpi_content['body'] = preg_replace(
-    '~(<p>)?<img.+?/>(</p>)?~is',
-    '',
-    $bpi_content['body']
-  );
 
   // Collect materials.
   $materials_field_setting = $bpi_content_mapping->get('bpi_field_materials');
