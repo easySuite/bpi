@@ -5,6 +5,11 @@ namespace Drupal\bpi\Form;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 
+/**
+ * Class ContentMappingForm.
+ *
+ * Defines a form that allows mapping Drupal fields to their BPI counterparts.
+ */
 class ContentMappingForm extends ConfigFormBase {
 
   /**
@@ -39,7 +44,7 @@ class ContentMappingForm extends ConfigFormBase {
       '#options' => $node_types,
       '#default_value' => $settings->get('bpi_content_type') ?: reset($node_types_names),
       '#ajax' => [
-        'callback' => 'Drupal\bpi\Form\ContentMappingForm::_mapping_callback',
+        'callback' => 'Drupal\bpi\Form\ContentMappingForm::ajaxMappingCallback',
         'wrapper' => 'bpi-field-mapper-wrapper',
         'effect' => 'fade',
         'method' => 'replace',
@@ -114,11 +119,14 @@ class ContentMappingForm extends ConfigFormBase {
    * Custom ajax callback.
    *
    * @param array $form
+   *   Form array.
    * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   Form state.
    *
    * @return mixed
+   *   Form element to render.
    */
-  public function _mapping_callback(array &$form, FormStateInterface $form_state) {
+  public function ajaxMappingCallback(array &$form, FormStateInterface $form_state) {
     return $form['bpi_mapper'];
   }
 
@@ -136,4 +144,5 @@ class ContentMappingForm extends ConfigFormBase {
 
     parent::submitForm($form, $form_state);
   }
+
 }

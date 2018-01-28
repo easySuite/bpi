@@ -2,7 +2,6 @@
 
 namespace Drupal\bpi\Form;
 
-use Bpi\Sdk\Bpi;
 use Bpi\Sdk\Exception\SDKException;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Form\ConfigFormBase;
@@ -91,7 +90,8 @@ class ServiceSettingsForm extends ConfigFormBase {
           $form_state->getValue('bpi_api_key'),
           $form_state->getValue('bpi_secret_key')
         );
-      } catch (SDKException $e) {
+      }
+      catch (SDKException $e) {
         $form_state->setErrorByName('', $e->getMessage());
       }
     }
@@ -110,4 +110,5 @@ class ServiceSettingsForm extends ConfigFormBase {
 
     parent::submitForm($form, $form_state);
   }
+
 }
