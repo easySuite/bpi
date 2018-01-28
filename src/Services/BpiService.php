@@ -3,6 +3,7 @@
 namespace Drupal\bpi\Services;
 
 use Bpi\Sdk\Bpi;
+use Bpi\Sdk\Exception\SDKException;
 
 /**
  * Class BpiService.
@@ -48,9 +49,12 @@ class BpiService {
     $bpi = new Bpi($url, $agency, $publicKey, $privateKey);
 
     // Fake a request, to check connectivity.
-    // TODO:
-    // Might be slow and unreliable, add a method in Bpi to check connectivity.
-    $bpi->searchNodes(['*']);
+    try {
+      $bpi->getDictionaries();
+    }
+    catch (SDKException $e) {
+      \Drupal::logger('bpi')->error($e->getMessage());
+    }
   }
 
   /**

@@ -6,6 +6,7 @@
         }
     ],
     "require": {
+        "php": "^7.1",
         "bpi/sdk": "4.2.x-dev"
     }
 }
