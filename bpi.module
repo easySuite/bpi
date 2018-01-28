@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @file
+ * BPI module.
+ */
+
 use Drupal\Core\Database\Database;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Field\FieldConfigInterface;
@@ -9,7 +14,7 @@ use Drupal\node\Entity\Node;
 use Drupal\user\Entity\User;
 
 /**
- * Implement hook_form_FORM_ID_alter().
+ * Implements hook_form_FORM_ID_alter().
  */
 function bpi_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   $selected_content_type = \Drupal::config('bpi.content_mapping')
@@ -98,11 +103,10 @@ function bpi_form_node_form_alter(&$form, FormStateInterface $form_state, $form_
     '#default_value' => TRUE,
   ];
 
-
-  $validate_handler = 'Drupal\bpi\Controller\FormHandlers::bpi_push_validate';
+  $validate_handler = 'Drupal\bpi\Controller\FormHandlers::bpiPushValidate';
   $form['#validate'][] = $validate_handler;
 
-  $submit_handler = 'Drupal\bpi\Controller\FormHandlers::bpi_push_submit';
+  $submit_handler = 'Drupal\bpi\Controller\FormHandlers::bpiPushSubmit';
   $form['#submit'][] = $submit_handler;
   $form['actions']['submit']['#submit'][] = $submit_handler;
 }
@@ -122,7 +126,8 @@ function bpi_get_bpi_dictionaries() {
 
   try {
     $dictionaries = $bpiService->getInstance()->getDictionaries();
-  } catch (\Exception $e) {
+  }
+  catch (\Exception $e) {
     \Drupal::logger('bpi')->error($e->getMessage());
   }
 
@@ -132,7 +137,7 @@ function bpi_get_bpi_dictionaries() {
 /**
  * Convert node object to array structure, suitable for pushing to the well.
  *
- * @param stdClass $node
+ * @param \Drupal\node\Entity\Node $node
  *   Node object being processed.
  * @param string $category
  *   Selected category at the BPI side.
@@ -140,10 +145,10 @@ function bpi_get_bpi_dictionaries() {
  *   Selected audience at the BPI side.
  * @param bool $with_images
  *   Include images or not.
- * @param bool $authorship
+ * @param bool $anonymous
  *   Include author name or not.
  * @param int $editable
- *   1 - to mark as editable, 0 - not editable.
+ *   Int 1 - to mark as editable, 0 - not editable.
  * @param bool $with_refs
  *   If TRUE ting material reference are extracted.
  *
@@ -280,9 +285,10 @@ function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FAL
       }
     }
 
-    // TODO: Small hack for BPI validation, this might not be suitable id at all.
-    array_walk($materials, function(&$v, $k) {
-        $v = '870970-basis:'.$v;
+    // TODO:
+    // Small hack for BPI validation, this might not be suitable id at all.
+    array_walk($materials, function (&$v, $k) {
+        $v = '870970-basis:' . $v;
     });
 
     $bpi_content['related_materials'] = $materials;
@@ -294,14 +300,14 @@ function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FAL
 /**
  * Track nodes push/syndication actions.
  *
- * @param $nid
+ * @param int $nid
  *   Node id.
- * @param $bid
+ * @param int $status
+ *   BPI status.
+ * @param int $bid
  *   BPI id.
  * @param array $params
- *   BPI params
- * @param $status
- *   BPI status.
+ *   BPI params.
  *
  * @throws \Exception
  */
@@ -413,7 +419,6 @@ function bpi_node_load($nodes) {
  *
  * @param string $node_type
  *   Node type machine name, whose fields list is expected.
- *
  * @param array $allowed_types
  *   Filter by these instance types.
  *
@@ -448,10 +453,10 @@ function bpi_find_field_instances($node_type, array $allowed_types): array {
  *
  * @param string $image_field_name
  *   The image field name.
- * @param Node $node
+ * @param \Drupal\node\Entity\Node $node
  *   The node.
  *
- * @return NULL|string
+ * @return null|string
  *   The image type.
  */
 function bpi_get_image_type($image_field_name, Node $node) {

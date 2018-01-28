@@ -7,7 +7,7 @@ use Drupal\Core\Config\ConfigFactory;
 /**
  * Class BpiServiceFactory.
  *
- * @package Drupal\bpi\Services
+ * Use in dependency injection routine.
  */
 class BpiServiceFactory {
 
@@ -18,8 +18,9 @@ class BpiServiceFactory {
    *   Drupal config.
    *
    * @return \Drupal\bpi\Services\BpiService
+   *   BPI instance.
    */
-  static function create(ConfigFactory $config): BpiService {
+  public static function create(ConfigFactory $config): BpiService {
     $bpiConfig = $config->get('bpi.service_settings');
 
     return new BpiService(
@@ -29,4 +30,5 @@ class BpiServiceFactory {
       $bpiConfig->get('bpi_secret_key')
     );
   }
+
 }
