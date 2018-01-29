@@ -275,7 +275,7 @@ function bpi_convert_to_bpi(Node $node, $category, $audience, $with_images = FAL
           }
         }
         else {
-          $materials[] = $referencedEntity->getName();
+          $materials[] = $referencedEntity->getTitle();
         }
       }
     }

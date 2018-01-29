@@ -19,19 +19,27 @@ class FormHandlers {
    * Catches the submit event of a form to push the node to bpi service.
    */
   public static function bpiPushSubmit(&$form, FormStateInterface $form_state) {
-    /** @var \Drupal\node\Entity\Node $loaded_node */
-    $loaded_node = $form_state->getFormObject()->getEntity();
-    $node_pushed = !empty($loaded_node->bpi_id);
-
     if (empty($form_state->getValue('send_to_bpi'))) {
       return;
     }
-    elseif ($node_pushed) {
-      $t = [
-        '%title' => $loaded_node->getTitle(),
-      ];
-      drupal_set_message(t('BPI: Node %title was already pushed to the well.', $t), 'warning');
-      return;
+
+    /** @var \Drupal\node\Entity\Node $node */
+    $node = $form_state->getFormObject()->getEntity();
+    $bpi_id = $node->bpi_id ?? NULL;
+
+    /** @var \Drupal\bpi\Services\BpiService $bpi_service */
+    $bpi_service = \Drupal::service('bpi.service');
+
+    if ($bpi_id) {
+      $bpi_node = $bpi_service->getInstance()->getNode($bpi_id);
+
+      if ($bpi_node) {
+        $t = [
+          '%title' => $node->getTitle(),
+        ];
+        drupal_set_message(t('BPI: Node %title was already pushed to the well.', $t), 'warning');
+        return;
+      }
     }
 
     $category = $form_state->getValue('bpi_push_category');
@@ -40,13 +48,8 @@ class FormHandlers {
     $anonymous = $form_state->getValue('bpi_push_ccl');
     $editable = $form_state->getValue('bpi_push_editable');
 
-    /** @var \Drupal\node\Entity\Node $node */
-    $node = $form_state->getFormObject()->getEntity();
-
     $bpi_content = bpi_convert_to_bpi($node, $category, $audience, $with_images, $anonymous, $editable);
 
-    /** @var \Drupal\bpi\Services\BpiService $bpi_service */
-    $bpi_service = \Drupal::service('bpi.service');
     try {
       $push_result = $bpi_service->getInstance()
         ->push($bpi_content)
