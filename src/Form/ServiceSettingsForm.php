@@ -92,7 +92,8 @@ class ServiceSettingsForm extends ConfigFormBase {
         );
       }
       catch (SDKException $e) {
-        $form_state->setErrorByName('', $e->getMessage());
+        $form_state->setErrorByName('', $this->t('Failed to communicate with BPI service.'));
+        \Drupal::logger('bpi')->error($e->getMessage());
       }
     }
   }

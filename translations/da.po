@@ -263,3 +263,7 @@ msgstr ""
 #: modules/custom/bpi/src/Form/ServiceSettingsForm.php:81
 msgid "Please enter a valid url."
 msgstr ""
+
+#: modules/custom/bpi/src/Form/ServiceSettingsForm.php:95
+msgid "Failed to communicate with BPI service."
+msgstr ""
